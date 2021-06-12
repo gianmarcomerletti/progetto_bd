@@ -82,6 +82,7 @@ static void create_user(MYSQL *conn)
     } else {
         printf("Utente aggiunto...\n");
         mysql_stmt_close(prepared_stmt);
+        return;
     }
 
     err:
@@ -90,13 +91,13 @@ static void create_user(MYSQL *conn)
     exit(EXIT_FAILURE);
 }
 
-void run_as_admin(MYSQL *conn, char *user, char *pass)
+void run_as_admin(MYSQL *conn)
 {
     char op;
 
     printf("Switching to admin role...\n");
 
-    if(mysql_change_user(conn, user, pass, "progetto")) {
+    if(mysql_change_user(conn, "admin", "admin", "progetto")) {
         fprintf(stderr, "mysql_change_user() failed\n");
         exit(EXIT_FAILURE);
     }
@@ -105,7 +106,7 @@ void run_as_admin(MYSQL *conn, char *user, char *pass)
         printf("\033[2J\033[H");
         printf("*** MENU ***\n\n");
         printf("1) Crea nuovo utente\n");
-        printf("2) Esci\n");
+        printf("2) Esci\n\n");
 
         printf("Seleziona un'opzione:\t");
         scanf(" %c", &op);
@@ -121,6 +122,6 @@ void run_as_admin(MYSQL *conn, char *user, char *pass)
                 abort();
         }
 
-        //getchar();
+        getchar();
     }
 }
