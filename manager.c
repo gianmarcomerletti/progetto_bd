@@ -333,6 +333,67 @@ static void add_contatto_privato(MYSQL *conn, int id)
     exit(EXIT_FAILURE);
 }
 
+static void add_indirizzo_fornitore(MYSQL *conn, int id)
+{
+    MYSQL_STMT *prepared_stmt;
+    MYSQL_BIND param[3];
+    char statement[] = "call aggiungi_contatto_cliente(?,?,?);";
+
+    // Input
+    char indirizzo[46];
+    char alias[16];
+
+    printf("Indirizzo: ");
+    scanf(" %[^\n]", indirizzo);
+    printf("Alias indirizzo: ");
+    scanf(" %[^\n]", alias);
+
+    prepared_stmt = mysql_stmt_init(conn);
+    if (prepared_stmt == NULL) {
+        fprintf (stderr, "%s\n", "Could not initialize statement handler");
+        goto err;
+    }
+
+    if (mysql_stmt_prepare(prepared_stmt, statement, strlen(statement)) != 0) {
+        fprintf (stderr, "%s\n", "Could not prepare statement handler");
+        goto err;
+    }
+
+    // Prepare parameters
+    memset(param, 0, sizeof(param));
+
+    param[0].buffer_type = MYSQL_TYPE_LONG;
+    param[0].buffer = &id;
+    param[0].buffer_length = sizeof(id);
+
+    param[1].buffer_type = MYSQL_TYPE_VAR_STRING;
+    param[1].buffer = &indirizzo;
+    param[1].buffer_length = strlen(indirizzo);
+
+    param[2].buffer_type = MYSQL_TYPE_VAR_STRING;
+    param[2].buffer = alias;
+    param[2].buffer_length = strlen(alias);
+
+    if (mysql_stmt_bind_param(prepared_stmt, param) != 0) {
+        fprintf(stderr, "Could not bind param for procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Esegui procedura
+    if (mysql_stmt_execute(prepared_stmt) != 0) {
+        fprintf(stderr, "Could not execute procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    mysql_stmt_close(prepared_stmt);
+    return;
+
+    err:
+    mysql_stmt_close(prepared_stmt);
+    mysql_close(conn);
+    exit(EXIT_FAILURE);
+}
+
 static void add_cliente(MYSQL *conn)
 {
     int id;
@@ -348,7 +409,7 @@ static void add_cliente(MYSQL *conn)
             id = add_privato(conn);
             printf("Cliente inserito con ID %d...\n", id);
             while (true) {
-                printf("\nAggiungere un ulteriore contatto? [Y/N]\n", id);
+                printf("\nAggiungere un ulteriore contatto? [Y/N]\n");
                 scanf(" %c", &r2);
                 if (r2 == 'Y') {
                     add_contatto_privato(conn, id);
@@ -364,7 +425,7 @@ static void add_cliente(MYSQL *conn)
             id = add_rivendita(conn);
             printf("Cliente inserito con ID %d...\n", id);
             while (true) {
-                printf("\nAggiungere un ulteriore contatto? [Y/N]\n", id);
+                printf("\nAggiungere un ulteriore contatto? [Y/N]\n");
                 scanf(" %c", &r2);
                 if (r2 == 'Y') {
                     add_contatto_privato(conn, id);
@@ -705,6 +766,242 @@ static void create_ordine(MYSQL *conn)
     exit(EXIT_FAILURE);
 }
 
+static void add_fornitore(MYSQL *conn)
+{
+    MYSQL_STMT *prepared_stmt;
+    MYSQL_BIND param[5];
+    char statement[] = "call aggiungi_fornitore(?,?,?,?,?);";
+    char r;
+
+    // Input
+    char nome[46];
+    char cf[17];
+    char indirizzo[46];
+    char alias[16];
+    int id_fornitore;
+
+    printf("\nNome completo: ");
+    scanf(" %[^\n]", nome);
+    printf("CF: ");
+    scanf(" %s", cf);
+    printf("Indirizzo: ");
+    scanf(" %[^\n]", indirizzo);
+    printf("Alias indirizzo: ");
+    scanf(" %[^\n]", alias);
+
+    prepared_stmt = mysql_stmt_init(conn);
+    if (prepared_stmt == NULL) {
+        fprintf (stderr, "%s\n", "Could not initialize statement handler");
+        goto err;
+    }
+
+    if (mysql_stmt_prepare(prepared_stmt, statement, strlen(statement)) != 0) {
+        fprintf (stderr, "%s\n", "Could not prepare statement handler");
+        goto err;
+    }
+
+    // Prepare parameters
+    memset(param, 0, sizeof(param));
+
+    param[0].buffer_type = MYSQL_TYPE_VAR_STRING;
+    param[0].buffer = nome;
+    param[0].buffer_length = strlen(nome);
+
+    param[1].buffer_type = MYSQL_TYPE_VAR_STRING;
+    param[1].buffer = cf;
+    param[1].buffer_length = strlen(cf);
+
+    param[2].buffer_type = MYSQL_TYPE_VAR_STRING;
+    param[2].buffer = indirizzo;
+    param[2].buffer_length = strlen(indirizzo);
+
+    param[3].buffer_type = MYSQL_TYPE_VAR_STRING;
+    param[3].buffer = alias;
+    param[3].buffer_length = strlen(alias);
+
+    param[4].buffer_type = MYSQL_TYPE_LONG; //OUT
+    param[4].buffer = &id_fornitore;
+    param[4].buffer_length = sizeof(id_fornitore);
+
+    if (mysql_stmt_bind_param(prepared_stmt, param) != 0) {
+        fprintf(stderr, "Could not bind param for procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Esegui procedura
+    if (mysql_stmt_execute(prepared_stmt) != 0) {
+        fprintf(stderr, "Could not execute procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Prepara parametri di output
+    memset(param, 0, sizeof(param));
+    param[0].buffer_type = MYSQL_TYPE_LONG; // OUT
+    param[0].buffer = &id_fornitore;
+    param[0].buffer_length = sizeof(id_fornitore);
+
+    if(mysql_stmt_bind_result(prepared_stmt, param)) {
+        fprintf(stderr, "Could not receive results of procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Ricevi parametri di output
+    if(mysql_stmt_fetch(prepared_stmt)) {
+        fprintf(stderr, "Could not buffer results of procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    mysql_stmt_close(prepared_stmt);
+    printf("Fornitore inserito con ID %d...\n", id_fornitore);
+    while (true) {
+        printf("\nAggiungere un ulteriore indirizzo? [Y/N]\n");
+        scanf(" %c", &r);
+        if (r == 'Y') {
+            add_indirizzo_fornitore(conn, id_fornitore);
+            printf("Indirizzo inserito...\n");
+        }
+        else
+            break;
+    }
+    return;
+
+    err:
+    mysql_stmt_close(prepared_stmt);
+    mysql_close(conn);
+    exit(EXIT_FAILURE);
+}
+
+static void ordini_cliente(MYSQL *conn)
+{
+    MYSQL_STMT *prepared_stmt;
+    MYSQL_BIND param[4];
+    char statement[] = "call report_ordini(?);";
+
+    MYSQL_RES *rs_metadata;
+    MYSQL_FIELD *fields;
+    unsigned int i;
+    int num_fields;
+
+    // Input
+    int cod_cliente;
+
+    printf("Cod. cliente: ");
+    scanf(" %d", &cod_cliente);
+
+    prepared_stmt = mysql_stmt_init(conn);
+    if (prepared_stmt == NULL) {
+        fprintf (stderr, "%s\n", "Could not initialize statement handler");
+        goto err;
+    }
+
+    if (mysql_stmt_prepare(prepared_stmt, statement, strlen(statement)) != 0) {
+        fprintf (stderr, "%s\n", "Could not prepare statement handler");
+        goto err;
+    }
+
+    // Prepare parameters
+    memset(param, 0, sizeof(param));
+
+    param[0].buffer_type = MYSQL_TYPE_LONG;
+    param[0].buffer = &cod_cliente;
+    param[0].buffer_length = sizeof(cod_cliente);
+
+    if (mysql_stmt_bind_param(prepared_stmt, param) != 0) {
+        fprintf(stderr, "Could not bind param for procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Esegui procedura
+    if (mysql_stmt_execute(prepared_stmt) != 0) {
+        fprintf(stderr, "Could not execute procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+    mysql_stmt_store_result(prepared_stmt);
+    num_fields = mysql_stmt_field_count(prepared_stmt);
+    rs_metadata = mysql_stmt_result_metadata(prepared_stmt);
+    if (rs_metadata == NULL) {
+        fprintf(stderr, "%s\n", "Could not retrive result metadata");
+        goto err;
+    }
+
+    fields = mysql_fetch_fields(rs_metadata);
+
+    // Prepara parametri di output
+    memset(param, 0, sizeof (MYSQL_BIND) * num_fields);
+
+    printf("\n\n*** LISTA ORDINI per il CLIENTE cod:%d ***\n", cod_cliente);
+    for (i=0; i<num_fields; i++) {
+        switch(fields[i].type) {
+            case MYSQL_TYPE_DATETIME:
+                param[i].buffer = malloc(sizeof(MYSQL_TIME) + 1);
+                param[i].buffer_length = sizeof(MYSQL_TIME) + 1;
+                break;
+            case MYSQL_TYPE_FLOAT:
+                param[i].buffer = malloc(sizeof(float) + 1);
+                param[i].buffer_length = sizeof(float) + 1;
+                break;
+            case MYSQL_TYPE_LONG:
+                param[i].buffer = malloc(sizeof(int) + 1);
+                param[i].buffer_length = sizeof(int) + 1;
+                break;
+            default:
+                param[i].buffer = malloc(fields[i].max_length + 1);
+                param[i].buffer_length = fields[i].max_length + 1;
+                break;
+        }
+        param[i].buffer_type = fields[i].type;
+
+        if(param[i].buffer == NULL) {
+            printf("Cannot allocate output buffers\n");
+            goto err;
+        }
+
+        printf(" %-*s |", (int)fields[i].length, fields[i].name);
+    }
+    printf("\n");
+    if(mysql_stmt_bind_result(prepared_stmt, param)) {
+        fprintf(stderr, "Could not bind output param: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    int status;
+    while (true) {
+        status = mysql_stmt_fetch(prepared_stmt);
+        if (status == 1 || status == MYSQL_NO_DATA)
+            break;
+
+        for (i=0; i<num_fields; i++) {
+            switch (param[i].buffer_type) {
+                case MYSQL_TYPE_VAR_STRING:
+                case MYSQL_TYPE_DATETIME:
+                    printf(" %-*s |", (int)fields[i].length, (char *)param[i].buffer);
+                    break;
+                case MYSQL_TYPE_STRING:
+                    printf(" %-*s |", (int)fields[i].length, (char *)param[i].buffer);
+                    break;
+                case MYSQL_TYPE_FLOAT:
+                    printf(" %.02f |", *(float *)param[i].buffer);
+                    break;
+                case MYSQL_TYPE_LONG:
+                    printf(" %-*d |", (int)fields[i].length, *(int *)param[i].buffer);
+                    break;
+                default:
+                    printf("ERROR: Unhandled type (%d)\n", param[i].buffer_type);
+                    abort();
+            }
+        }
+    }
+
+    mysql_free_result(rs_metadata); /* free metadata */;
+    mysql_stmt_close(prepared_stmt);
+    return;
+
+    err:
+    mysql_stmt_close(prepared_stmt);
+    mysql_close(conn);
+    exit(EXIT_FAILURE);
+}
+
 void run_as_manager(MYSQL *conn)
 {
     char op;
@@ -739,7 +1036,7 @@ void run_as_manager(MYSQL *conn)
                 add_cliente(conn);
                 break;
             case '3':
-//                create_user(conn);
+                add_fornitore(conn);
                 break;
             case '4':
                 create_ordine(conn);
@@ -748,7 +1045,7 @@ void run_as_manager(MYSQL *conn)
                 show_inventario(conn);
                 break;
             case '6':
-//                create_user(conn);
+                ordini_cliente(conn);
                 break;
             case '7':
                 return;
