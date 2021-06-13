@@ -14,8 +14,8 @@ typedef enum {
 } role_t;
 
 static char *opt_host_name = "127.0.0.1"; /* host (default=localhost) */
-static char *opt_user_name = "root"; /* username (default=login name)*/
-static char *opt_password = "root"; /* password (default=none) */
+static char *opt_user_name = "login"; /* username (default=login name)*/
+static char *opt_password = "login"; /* password (default=none) */
 static unsigned int opt_port_num = 3306; /* port number (use built-in) */
 static char *opt_socket_name = NULL; /* socket name (use built-in) */
 static char *opt_db_name = "progetto"; /* database name (default=none) */

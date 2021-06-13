@@ -102,14 +102,15 @@ void run_as_admin(MYSQL *conn)
         exit(EXIT_FAILURE);
     }
 
+    printf("\033[2J\033[H");
     while(true) {
-        printf("\033[2J\033[H");
-        printf("*** MENU ***\n\n");
+        printf("\n\n*** MENU ***\n\n");
         printf("1) Crea nuovo utente\n");
         printf("2) Esci\n\n");
 
         printf("Seleziona un'opzione:\t");
         scanf(" %c", &op);
+        printf("\033[2J\033[H");
 
         switch(op) {
             case '1':

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "defines.h"
 
@@ -495,7 +496,41 @@ static void add_pianta(MYSQL *conn)
 
 static void show_inventario(MYSQL *conn)
 {
+    MYSQL_RES *res_set;
+    MYSQL_ROW row;
+    MYSQL_FIELD *fields;
+    unsigned int i;
 
+    // Esegui query
+    if (mysql_query(conn, "select * from inventario;") != 0) {
+        fprintf(stderr, "%s\n", "Could not execute query");
+        goto err;
+    }
+
+    res_set = mysql_store_result(conn);
+    if (res_set == NULL) {
+        fprintf(stderr, "%s\n", "Could not store results");
+        goto err;
+    }
+
+    printf("\n\n*** LISTA PIANTE MAGAZZINO ***\n");
+    fields = mysql_fetch_field(res_set);
+    mysql_field_seek (res_set, 0);
+    for (i=0; i<mysql_num_fields(res_set); i++) {
+        printf(" %-*s |", (int)fields[i].length, fields[i].name);
+    }
+    printf("\n");
+    while ((row = mysql_fetch_row(res_set)) != NULL) {
+        for (i=0; i<mysql_num_fields(res_set); i++) {
+            printf(" %-*s |", (int)fields[i].length, row[i] != NULL ? row[i] : "NULL");
+        }
+        printf("\n");
+    }
+    return;
+
+    err:
+    mysql_close(conn);
+    exit(EXIT_FAILURE);
 }
 
 static void add_pianta_ordine(MYSQL *conn, int id)
@@ -508,7 +543,8 @@ static void add_pianta_ordine(MYSQL *conn, int id)
     int cod_pianta;
     int quant;
 
-    printf("Cod. pianta: ");
+    show_inventario(conn);
+    printf("\nCod. pianta: ");
     scanf(" %d", &cod_pianta);
     printf("Quantita: ");
     scanf(" %d", &quant);
@@ -572,9 +608,11 @@ static void create_ordine(MYSQL *conn)
     char ind_sped[46];
     int id_ordine;
 
+
     printf("\nCod. cliente: ");
     scanf(" %d", &cod_cliente);
-    printf("Cod. pianta: ");
+    show_inventario(conn);
+    printf("\nCod. pianta: ");
     scanf(" %d", &cod_pianta);
     printf("Quantita: ");
     scanf(" %d", &quant);
@@ -678,9 +716,9 @@ void run_as_manager(MYSQL *conn)
         exit(EXIT_FAILURE);
     }
 
+    printf("\033[2J\033[H");
     while(true) {
-        printf("\033[2J\033[H");
-        printf("*** MENU ***\n\n");
+        printf("\n\n*** MENU ***\n\n");
         printf("1) Aggiungi pianta\n");
         printf("2) Aggiungi cliente\n");
         printf("3) Aggiungi fornitore\n");
@@ -691,6 +729,7 @@ void run_as_manager(MYSQL *conn)
 
         printf("Seleziona un'opzione:\t");
         scanf(" %c", &op);
+        printf("\033[2J\033[H");
 
         switch(op) {
             case '1':
@@ -706,7 +745,7 @@ void run_as_manager(MYSQL *conn)
                 create_ordine(conn);
                 break;
             case '5':
-//                create_user(conn);
+                show_inventario(conn);
                 break;
             case '6':
 //                create_user(conn);
@@ -717,7 +756,6 @@ void run_as_manager(MYSQL *conn)
                 fprintf(stderr, "Invalid condition at %s:%d\n", __FILE__, __LINE__);
                 abort();
         }
-
         getchar();
     }
 }
