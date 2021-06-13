@@ -380,6 +380,293 @@ static void add_cliente(MYSQL *conn)
     }
 }
 
+static void add_pianta(MYSQL *conn)
+{
+    MYSQL_STMT *prepared_stmt;
+    MYSQL_BIND param[8];
+    char statement[] = "call aggiungi_pianta(?,?,?,?,?,?,?,?);";
+
+    // Input
+    char nome_comune[46];
+    char nome_lat[46];
+    int disp;
+    char fiorita, giardino, esotica;
+    float prezzo;
+    int id_pianta;
+
+    printf("\nNome comune: ");
+    scanf(" %[^\n]", nome_comune);
+    printf("Nome latino: ");
+    scanf(" %[^\n]", nome_lat);
+    printf("Disponibilità: ");
+    scanf(" %d", &disp);
+    printf("Pianta FIORITA? [0/1]");
+    scanf(" %c", &fiorita);
+    printf("Pianta DA GIARDINO? [0/1]");
+    scanf(" %c", &giardino);
+    printf("Pianta ESOTICA? [0/1]");
+    scanf(" %c", &esotica);
+    printf("Prezzo: ");
+    scanf(" %f", &prezzo);
+
+    prepared_stmt = mysql_stmt_init(conn);
+    if (prepared_stmt == NULL) {
+        fprintf (stderr, "%s\n", "Could not initialize statement handler");
+        goto err;
+    }
+
+    if (mysql_stmt_prepare(prepared_stmt, statement, strlen(statement)) != 0) {
+        fprintf (stderr, "%s\n", "Could not prepare statement handler");
+        goto err;
+    }
+
+    // Prepare parameters
+    memset(param, 0, sizeof(param));
+
+    param[0].buffer_type = MYSQL_TYPE_VAR_STRING;
+    param[0].buffer = nome_comune;
+    param[0].buffer_length = strlen(nome_comune);
+
+    param[1].buffer_type = MYSQL_TYPE_VAR_STRING;
+    param[1].buffer = nome_lat;
+    param[1].buffer_length = strlen(nome_lat);
+
+    param[2].buffer_type = MYSQL_TYPE_LONG;
+    param[2].buffer = &disp;
+    param[2].buffer_length = sizeof(disp);
+
+    param[3].buffer_type = MYSQL_TYPE_TINY;
+    param[3].buffer = &fiorita;
+    param[3].buffer_length = sizeof(fiorita);
+
+    param[4].buffer_type = MYSQL_TYPE_TINY;
+    param[4].buffer = &giardino;
+    param[4].buffer_length = sizeof(giardino);
+
+    param[5].buffer_type = MYSQL_TYPE_TINY;
+    param[5].buffer = &esotica;
+    param[5].buffer_length = sizeof(esotica);
+
+    param[6].buffer_type = MYSQL_TYPE_FLOAT;
+    param[6].buffer = &prezzo;
+    param[6].buffer_length = sizeof(prezzo);
+
+    param[7].buffer_type = MYSQL_TYPE_LONG; //OUT
+    param[7].buffer = &id_pianta;
+    param[7].buffer_length = sizeof(id_pianta);
+
+    if (mysql_stmt_bind_param(prepared_stmt, param) != 0) {
+        fprintf(stderr, "Could not bind param for procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Esegui procedura
+    if (mysql_stmt_execute(prepared_stmt) != 0) {
+        fprintf(stderr, "Could not execute procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Prepara parametri di output
+    memset(param, 0, sizeof(param));
+    param[0].buffer_type = MYSQL_TYPE_LONG; // OUT
+    param[0].buffer = &id_pianta;
+    param[0].buffer_length = sizeof(id_pianta);
+
+    if(mysql_stmt_bind_result(prepared_stmt, param)) {
+        fprintf(stderr, "Could not receive results of procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Ricevi parametri di output
+    if(mysql_stmt_fetch(prepared_stmt)) {
+        fprintf(stderr, "Could not buffer results of procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    mysql_stmt_close(prepared_stmt);
+    printf("Pianta inserita con ID %d...\n", id_pianta);
+    return;
+
+    err:
+    mysql_stmt_close(prepared_stmt);
+    mysql_close(conn);
+    exit(EXIT_FAILURE);
+}
+
+static void show_inventario(MYSQL *conn)
+{
+
+}
+
+static void add_pianta_ordine(MYSQL *conn, int id)
+{
+    MYSQL_STMT *prepared_stmt;
+    MYSQL_BIND param[3];
+    char statement[] = "call aggiungi_ordine(?,?,?);";
+
+    // Input
+    int cod_pianta;
+    int quant;
+
+    printf("Cod. pianta: ");
+    scanf(" %d", &cod_pianta);
+    printf("Quantita: ");
+    scanf(" %d", &quant);
+
+    prepared_stmt = mysql_stmt_init(conn);
+    if (prepared_stmt == NULL) {
+        fprintf (stderr, "%s\n", "Could not initialize statement handler");
+        goto err;
+    }
+
+    if (mysql_stmt_prepare(prepared_stmt, statement, strlen(statement)) != 0) {
+        fprintf (stderr, "%s\n", "Could not prepare statement handler");
+        goto err;
+    }
+
+    // Prepare parameters
+    memset(param, 0, sizeof(param));
+
+    param[0].buffer_type = MYSQL_TYPE_LONG;
+    param[0].buffer = &id;
+    param[0].buffer_length = sizeof(id);
+
+    param[1].buffer_type = MYSQL_TYPE_LONG;
+    param[1].buffer = &cod_pianta;
+    param[1].buffer_length = sizeof(cod_pianta);
+
+    param[2].buffer_type = MYSQL_TYPE_LONG;
+    param[2].buffer = &quant;
+    param[2].buffer_length = sizeof(quant);
+
+    if (mysql_stmt_bind_param(prepared_stmt, param) != 0) {
+        fprintf(stderr, "Could not bind param for procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Esegui procedura
+    if (mysql_stmt_execute(prepared_stmt) != 0) {
+        fprintf(stderr, "Could not execute procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    mysql_stmt_close(prepared_stmt);
+    return;
+
+    err:
+    mysql_stmt_close(prepared_stmt);
+    mysql_close(conn);
+    exit(EXIT_FAILURE);
+}
+
+static void create_ordine(MYSQL *conn)
+{
+    MYSQL_STMT *prepared_stmt;
+    MYSQL_BIND param[5];
+    char statement[] = "call crea_ordine(?,?,?,?,?);";
+
+    // Input
+    int cod_cliente;
+    int cod_pianta;
+    int quant;
+    char ind_sped[46];
+    int id_ordine;
+
+    printf("\nCod. cliente: ");
+    scanf(" %d", &cod_cliente);
+    printf("Cod. pianta: ");
+    scanf(" %d", &cod_pianta);
+    printf("Quantita: ");
+    scanf(" %d", &quant);
+    printf("Indirizzo spedizione: ");
+    scanf(" %[^\n]", ind_sped);
+
+    prepared_stmt = mysql_stmt_init(conn);
+    if (prepared_stmt == NULL) {
+        fprintf (stderr, "%s\n", "Could not initialize statement handler");
+        goto err;
+    }
+
+    if (mysql_stmt_prepare(prepared_stmt, statement, strlen(statement)) != 0) {
+        fprintf (stderr, "%s\n", "Could not prepare statement handler");
+        goto err;
+    }
+
+    // Prepare parameters
+    memset(param, 0, sizeof(param));
+
+    param[0].buffer_type = MYSQL_TYPE_LONG;
+    param[0].buffer = &cod_cliente;
+    param[0].buffer_length = sizeof(cod_cliente);
+
+    param[1].buffer_type = MYSQL_TYPE_LONG;
+    param[1].buffer = &cod_pianta;
+    param[1].buffer_length = sizeof(cod_pianta);
+
+    param[2].buffer_type = MYSQL_TYPE_LONG;
+    param[2].buffer = &quant;
+    param[2].buffer_length = sizeof(quant);
+
+    param[3].buffer_type = MYSQL_TYPE_VAR_STRING;
+    param[3].buffer = ind_sped;
+    param[3].buffer_length = strlen(ind_sped);
+
+    param[4].buffer_type = MYSQL_TYPE_LONG; //OUT
+    param[4].buffer = &id_ordine;
+    param[4].buffer_length = sizeof(id_ordine);
+
+    if (mysql_stmt_bind_param(prepared_stmt, param) != 0) {
+        fprintf(stderr, "Could not bind param for procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Esegui procedura
+    if (mysql_stmt_execute(prepared_stmt) != 0) {
+        fprintf(stderr, "Could not execute procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Prepara parametri di output
+    memset(param, 0, sizeof(param));
+    param[0].buffer_type = MYSQL_TYPE_LONG; // OUT
+    param[0].buffer = &id_ordine;
+    param[0].buffer_length = sizeof(id_ordine);
+
+    if(mysql_stmt_bind_result(prepared_stmt, param)) {
+        fprintf(stderr, "Could not receive results of procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    // Ricevi parametri di output
+    if(mysql_stmt_fetch(prepared_stmt)) {
+        fprintf(stderr, "Could not buffer results of procedure: %s", mysql_stmt_error(prepared_stmt));
+        goto err;
+    }
+
+    mysql_stmt_close(prepared_stmt);
+
+    char r;
+    while (true) {
+        printf("\nAggiungere pianta all'ordine? [Y/N]\n");
+        scanf(" %c", &r);
+        if (r == 'Y') {
+            add_pianta_ordine(conn, id_ordine);
+            printf("Pianta inserita...\n");
+        }
+        else
+            break;
+    }
+
+
+    printf("Ordine creato con ID %d...\n", id_ordine);
+    return;
+
+    err:
+    mysql_stmt_close(prepared_stmt);
+    mysql_close(conn);
+    exit(EXIT_FAILURE);
+}
+
 void run_as_manager(MYSQL *conn)
 {
     char op;
@@ -396,8 +683,8 @@ void run_as_manager(MYSQL *conn)
         printf("*** MENU ***\n\n");
         printf("1) Aggiungi pianta\n");
         printf("2) Aggiungi cliente\n");
-        printf("3) Aggiungi fornitura\n");
-        printf("4) Aggiungi pianta\n");
+        printf("3) Aggiungi fornitore\n");
+        printf("4) Crea ordine\n");
         printf("5) Vedi inventario\n");
         printf("6) Vedi ordine cliente\n");
         printf("7) Esci\n\n");
@@ -407,7 +694,7 @@ void run_as_manager(MYSQL *conn)
 
         switch(op) {
             case '1':
-//                create_user(conn);
+                add_pianta(conn);
                 break;
             case '2':
                 add_cliente(conn);
@@ -416,7 +703,7 @@ void run_as_manager(MYSQL *conn)
 //                create_user(conn);
                 break;
             case '4':
-//                create_user(conn);
+                create_ordine(conn);
                 break;
             case '5':
 //                create_user(conn);
